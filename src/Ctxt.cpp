@@ -8,7 +8,7 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  * See the GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License along
  * with this program; if not, write to the Free Software Foundation, Inc.,
  * 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
@@ -31,18 +31,18 @@ void Ctxt::DummyEncrypt(const ZZX& ptxt, double size)
 
   long f = rem(context.productOfPrimes(context.ctxtPrimes),ptxtSpace);
   if (f == 1) { // scale by constant
-    DoubleCRT dcrt(ptxt, context, primeSet);  
+    DoubleCRT dcrt(ptxt, context, primeSet);
     parts.assign(1, CtxtPart(dcrt));
   } else {
     ZZX tmp;
     MulMod(tmp, ptxt, f, ptxtSpace, /*positive=*/false);
-    DoubleCRT dcrt(tmp, context, primeSet);  
+    DoubleCRT dcrt(tmp, context, primeSet);
     parts.assign(1, CtxtPart(dcrt));
   }
 }
 
 
-// Sanity-check: Check that prime-set is "valid", i.e. that it 
+// Sanity-check: Check that prime-set is "valid", i.e. that it
 // contains either all the special primes or none of them
 bool Ctxt::verifyPrimeSet() const
 {
@@ -55,7 +55,7 @@ bool Ctxt::verifyPrimeSet() const
 
 
 //! @brief How many levels in the "base-set" for that ciphertext
-long Ctxt::findBaseLevel() const 
+long Ctxt::findBaseLevel() const
 {
   IndexSet s;
   findBaseSet(s);
@@ -71,7 +71,7 @@ long Ctxt::findBaseLevel() const
 bool CtxtPart::operator==(const CtxtPart& other) const
 {
   if (((DoubleCRT&)*this)!=((DoubleCRT&)other)) return false;
-  
+
   return (skHandle==other.skHandle);
 }
 
@@ -107,7 +107,7 @@ Ctxt::Ctxt(const FHEPubKey& newPubKey, long newPtxtSpace):
 
 // Constructor
 Ctxt::Ctxt(ZeroCtxtLike_type, const Ctxt& ctxt):
-  context(ctxt.getPubKey().getContext()), pubKey(ctxt.getPubKey()), 
+  context(ctxt.getPubKey().getContext()), pubKey(ctxt.getPubKey()),
   ptxtSpace(ctxt.getPtxtSpace()),
   noiseVar(to_xdouble(0.0))
 {
@@ -191,9 +191,9 @@ void Ctxt::modDownToSet(const IndexSet &s)
       noiseVar = noiseVar*prodInv*prodInv;
     }
     //    cerr << "DEGENERATE DROP\n";
-  } 
+  }
   else {                                      // do real mod switching
-    for (size_t i=0; i<parts.size(); i++) 
+    for (size_t i=0; i<parts.size(); i++)
       parts[i].scaleDownToSet(intersection, ptxtSpace);
 
     // update the noise estimate
@@ -296,7 +296,7 @@ void Ctxt::reLinearize(long keyID)
       continue;
     }
     // Look for a key-switching matrix to re-linearize this part
-    const KeySwitch& W = (keyID>=0)? 
+    const KeySwitch& W = (keyID>=0)?
       pubKey.getKeySWmatrix(part.skHandle,keyID) :
       pubKey.getAnyKeySWmatrix(part.skHandle);
 
@@ -306,7 +306,7 @@ void Ctxt::reLinearize(long keyID)
     assert (g>1);
     tmp.ptxtSpace = g;
 
-    
+
     tmp.keySwitchPart(part, W); // switch this part & update noiseVar
   }
   *this = tmp;
@@ -346,11 +346,11 @@ void Ctxt::keySwitchPart(const CtxtPart& p, const KeySwitch& W)
   assert(context.specialPrimes.disjointFrom(p.getIndexSet()));
 
   // For parts p that point to 1 or s, only scale and add
-  if (p.skHandle.isOne() || p.skHandle.isBase(W.toKeyID)) { 
+  if (p.skHandle.isOne() || p.skHandle.isBase(W.toKeyID)) {
     CtxtPart pp = p;
     pp.addPrimesAndScale(context.specialPrimes);
     addPart(pp, /*matchPrimeSet=*/true);
-    return; 
+    return;
   }
 
   // some sanity checks
@@ -362,13 +362,13 @@ void Ctxt::keySwitchPart(const CtxtPart& p, const KeySwitch& W)
   long nDigits = 0;
   xdouble addedNoise = to_xdouble(0.0);
   double sizeLeft = context.logOfProduct(p.getIndexSet());
-  for (size_t i=0; i<context.digits.size() && sizeLeft>0.0; i++) {    
+  for (size_t i=0; i<context.digits.size() && sizeLeft>0.0; i++) {
     nDigits++;
 
     double digitSize = context.logOfProduct(context.digits[i]);
     if (sizeLeft<digitSize) digitSize=sizeLeft; // need only part of this digit
 
-    // Added noise due to this digit is phi(m) * sigma^2 * pSpace^2 * |Di|^2/4, 
+    // Added noise due to this digit is phi(m) * sigma^2 * pSpace^2 * |Di|^2/4,
     // where |Di| is the magnitude of the digit
 
     // WARNING: the following line is written just so to prevent overflow
@@ -385,9 +385,9 @@ void Ctxt::keySwitchPart(const CtxtPart& p, const KeySwitch& W)
 
   long keyWeight = pubKey.getSKeyWeight(p.skHandle.getSecretKeyID());
   double phim = context.zMStar.getPhiM();
-  double logModSwitchNoise = log((double)keyWeight) 
+  double logModSwitchNoise = log((double)keyWeight)
     +2*log((double)pSpace) +log(phim) -log(12.0);
-  double logKeySwitchNoise = log(addedNoise) 
+  double logKeySwitchNoise = log(addedNoise)
     -2*context.logOfProduct(context.specialPrimes);
   assert(logKeySwitchNoise < logModSwitchNoise);
 
@@ -413,17 +413,17 @@ void Ctxt::keySwitchPart(const CtxtPart& p, const KeySwitch& W)
 
   // Add the columns in, one by one
   DoubleCRT tmp(context, IndexSet::emptySet());
-  
+
   for (unsigned long i=0; i<polyDigits.size(); i++) {
     ai.randomize();
     tmp = polyDigits[i];
-  
+
     // The operations below all use the IndexSet of tmp
-  
+
     // add part*a[i] with a handle pointing to base of W.toKeyID
     tmp.Mul(ai,  /*matchIndexSet=*/false);
     addPart(tmp, SKHandle(1,1,W.toKeyID), /*matchPrimeSet=*/true);
-  
+
     // add part*b[i] with a handle pointing to one
     polyDigits[i].Mul(W.b[i], /*matchIndexSet=*/false);
     addPart(polyDigits[i], SKHandle(), /*matchPrimeSet=*/true);
@@ -432,7 +432,7 @@ void Ctxt::keySwitchPart(const CtxtPart& p, const KeySwitch& W)
 } // restore random state upon destruction of the RandomState, see NumbTh.h
 
 // Find the IndexSet such that modDown to that set of primes makes the
-// additive term due to rounding into the dominant noise term 
+// additive term due to rounding into the dominant noise term
 void Ctxt::findBaseSet(IndexSet& s) const
 {
   if (getNoiseVar()<=0.0) { // an empty ciphertext
@@ -451,7 +451,7 @@ void Ctxt::findBaseSet(IndexSet& s) const
 
   // remove special primes, if they are included in this->primeSet
   s = getPrimeSet();
-  if (!s.disjointFrom(context.specialPrimes)) { 
+  if (!s.disjointFrom(context.specialPrimes)) {
     // scale down noise
     curNoise -= context.logOfProduct(context.specialPrimes);
     s.remove(context.specialPrimes);
@@ -497,7 +497,7 @@ void Ctxt::findBaseSet(IndexSet& s) const
 
 // Add/subtract a ciphertext part to a ciphertext.
 // With negative=true we subtract, otherwise we add.
-void Ctxt::addPart(const DoubleCRT& part, const SKHandle& handle, 
+void Ctxt::addPart(const DoubleCRT& part, const SKHandle& handle,
 		   bool matchPrimeSet, bool negative)
 {
   assert (&part.getContext() == &context);
@@ -509,7 +509,7 @@ void Ctxt::addPart(const DoubleCRT& part, const SKHandle& handle,
     primeSet.insert(setDiff);
   }
 
-  if (parts.size()==0) { // inserting 1st part 
+  if (parts.size()==0) { // inserting 1st part
     primeSet = part.getIndexSet();
     parts.push_back(CtxtPart(part,handle));
     if (negative) parts.back().Negate(); // not thread-safe??
@@ -536,6 +536,49 @@ void Ctxt::addPart(const DoubleCRT& part, const SKHandle& handle,
     }
   }
 }
+
+// Add/subtract a ciphertext part to a ciphertext.
+// With negative=true we subtract, otherwise we add.
+void Ctxt::xorPart(const DoubleCRT& part, const SKHandle& handle,
+		   bool matchPrimeSet, bool negative)
+{
+  assert (&part.getContext() == &context);
+
+  // add to the the prime-set of *this, if needed (this is expensive)
+  if (matchPrimeSet && !(part.getIndexSet() <= primeSet)) {
+    IndexSet setDiff = part.getIndexSet() / primeSet; // set minus
+    for (size_t i=0; i<parts.size(); i++) parts[i].addPrimes(setDiff);
+    primeSet.insert(setDiff);
+  }
+
+  if (parts.size()==0) { // inserting 1st part
+    primeSet = part.getIndexSet();
+    parts.push_back(CtxtPart(part,handle));
+    if (negative) parts.back().Negate(); // not thread-safe??
+  } else {               // adding to a ciphertext with existing parts
+    assert(part.getIndexSet() <= primeSet);  // Sanity check
+
+    DoubleCRT tmp(context, IndexSet::emptySet());
+    const DoubleCRT* ptr = &part;
+
+    // mod-UP the part if needed
+    IndexSet s = primeSet / part.getIndexSet();
+    if (!empty(s)) { // if need to mod-UP, do it on a temporary copy
+      tmp = part;
+      tmp.addPrimesAndScale(s);
+      ptr = &tmp;
+    }
+    long j = getPartIndexByHandle(handle);
+    if (j>=0) { // found a matching part, add them up
+      if (negative) parts[j] -= *ptr;
+      else          parts[j] ^= *ptr;
+    } else {    // no mathing part found, just append this part
+      parts.push_back(CtxtPart(*ptr,handle));
+      if (negative) parts.back().Negate(); // not thread-safe??
+    }
+  }
+}
+
 
 // Add a constant polynomial
 void Ctxt::addConstant(const DoubleCRT& dcrt, double size)
@@ -629,6 +672,55 @@ void Ctxt::addCtxt(const Ctxt& other, bool negative)
   noiseVar += other_pt->noiseVar;
 }
 
+// Add/subtract another ciphertxt (depending on the negative flag)
+void Ctxt::xorCtxt(const Ctxt& other, bool negative)
+{
+  // Sanity check: same context and public key
+  assert (&context==&other.context && &pubKey==&other.pubKey);
+
+  // Special case: if *this is empty then just copy other
+  if (this->isEmpty()) {
+    *this = other;
+    if (negative) negate();
+    return;
+  }
+
+  // Sanity check: verify that the plaintext spaces are compatible
+  long g = GCD(this->ptxtSpace, other.ptxtSpace);
+  assert (g>1);
+  this->ptxtSpace = g;
+
+  // Match the prime-sets, mod-UP the arguments if needed
+  IndexSet s = other.primeSet / primeSet; // set-minus
+  if (!empty(s)) modUpToSet(s);
+
+  const Ctxt* other_pt = &other;
+  Ctxt tmp(pubKey, other.ptxtSpace); // a temporaty empty ciphertext
+
+  s = primeSet / other.primeSet; // set-minus
+  if (!empty(s)) { // need to mod-UP the other, use a temporary copy
+    tmp = other;
+    tmp.modUpToSet(s);
+    other_pt = &tmp;
+  }
+
+  // Go over the parts of other, for each one check if
+  // there is a matching part in *this
+  for (size_t i=0; i<other_pt->parts.size(); i++) {
+    const CtxtPart& part = other_pt->parts[i];
+    long j = getPartIndexByHandle(part.skHandle);
+    if (j>=0) { // found a matching part, add them up
+      if (negative) parts[j] -= part;
+      else          parts[j] ^= part;
+    } else {    // no mathing part found, just append this part
+      parts.push_back(part);
+      if (negative) parts.back().Negate(); // not thread safe??
+    }
+  }
+  noiseVar += other_pt->noiseVar;
+}
+
+
 // Create a tensor product of c1,c2. It is assumed that *this,c1,c2
 // are defined relative to the same set of primes and plaintext space,
 // and that *this DOES NOT point to the same object as c1,c2
@@ -636,7 +728,7 @@ void Ctxt::tensorProduct(const Ctxt& c1, const Ctxt& c2)
 {
   // c1,c2 may be scaled, so multiply by the inverse scalar if needed
   long f = 1;
-  if (c1.ptxtSpace>2) 
+  if (c1.ptxtSpace>2)
     f = rem(context.productOfPrimes(c1.primeSet),c1.ptxtSpace);
   if (f!=1) f = InvMod(f,c1.ptxtSpace);
 
@@ -725,7 +817,7 @@ Ctxt& Ctxt::operator*=(const Ctxt& other)
       tmpCtxt1.modDownToLevel(lvl);
       tmpCtxt.tensorProduct(*this,tmpCtxt1); // compute the actual product
     }
-    else 
+    else
       tmpCtxt.tensorProduct(*this, other);   // compute the actual product
   }
   *this = tmpCtxt; // copy the result into *this
@@ -822,7 +914,7 @@ void Ctxt::multByConstant(const DoubleCRT& dcrt, double size)
   }
 
   // multiply all the parts by this constant
-  for (size_t i=0; i<parts.size(); i++) 
+  for (size_t i=0; i<parts.size(); i++)
     parts[i].Mul(dcrt,/*matchIndexSets=*/false);
 
   noiseVar *= size * context.zMStar.get_cM();
@@ -893,7 +985,7 @@ void Ctxt::automorph(long k) // Apply automorphism F(X)->F(X^k) (gcd(k,m)=1)
   long m = context.zMStar.getM();
 
   // Apply this automorphism to all the parts
-  for (size_t i=0; i<parts.size(); i++) { 
+  for (size_t i=0; i<parts.size(); i++) {
     parts[i].automorph(k);
     if (!parts[i].skHandle.isOne()) {
       parts[i].skHandle.powerOfX = MulMod(parts[i].skHandle.powerOfX,k,m);
@@ -907,7 +999,7 @@ void Ctxt::automorph(long k) // Apply automorphism F(X)->F(X^k) (gcd(k,m)=1)
 // Apply F(X)->F(X^k) followed by re-liearization. The automorphism is possibly
 // evaluated via a sequence of steps, to ensure that we can re-linearize the
 // result of every step.
-void Ctxt::smartAutomorph(long k) 
+void Ctxt::smartAutomorph(long k)
 {
   FHE_TIMER_START;
   // Special case: if *this is empty then do nothing
@@ -942,7 +1034,7 @@ void Ctxt::smartAutomorph(long k)
 
 
 // applies the Frobenius automorphism p^j
-void Ctxt::frobeniusAutomorph(long j) 
+void Ctxt::frobeniusAutomorph(long j)
 {
   FHE_TIMER_START;
   // Special case: if *this is empty then do nothing
@@ -995,7 +1087,7 @@ xdouble Ctxt::modSwitchAddedNoiseVar() const
     }
   }
   // WARNING: the following line is written just so to prevent overflow
-  addedNoise = (addedNoise * context.zMStar.getPhiM()) 
+  addedNoise = (addedNoise * context.zMStar.getPhiM())
                * ptxtSpace * (ptxtSpace/ 12.0);
 
   return addedNoise;
@@ -1016,14 +1108,14 @@ istream& operator>>(istream& str, SKHandle& handle)
   str >> handle.powerOfX;
   str >> handle.secretKeyID;
   seekPastChar(str,']');
-  //  cerr << "]";  
+  //  cerr << "]";
   return str;
 }
 
 ostream& operator<<(ostream& str, const CtxtPart& p)
 {
-  return str << "[" << ((const DoubleCRT&)p) << endl 
-	     << p.skHandle << "]"; 
+  return str << "[" << ((const DoubleCRT&)p) << endl
+	     << p.skHandle << "]";
 }
 
 istream& operator>>(istream& str, CtxtPart& p)
@@ -1170,7 +1262,7 @@ double Ctxt::rawModSwitch(vector<ZZX>& zzParts, long toModulus) const
 
   // Compute also the ratio modulo ptxtSpace
   const ZZ fromModulus = context.productOfPrimes(getPrimeSet());
-  long ratioModP = MulMod(toModulus % p2r, 
+  long ratioModP = MulMod(toModulus % p2r,
 			  InvMod(rem(fromModulus,p2r),p2r), p2r);
 
   mulmod_precon_t precon = PrepMulModPrecon(ratioModP, p2r);

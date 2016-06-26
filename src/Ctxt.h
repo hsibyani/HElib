@@ -8,7 +8,7 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  * See the GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License along
  * with this program; if not, write to the Free Software Foundation, Inc.,
  * 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
@@ -46,7 +46,7 @@
  *
  * Similarly, in principle you can also multiply arbitrary cipehrtexts, even
  * ones that are defined with respect to different keys, and the result will
- * be defined with respect to the tensor product of the two keys. 
+ * be defined with respect to the tensor product of the two keys.
  *
  * The current implementation is more restrictive, however. It requires that
  * a ciphertext has one part wrt 1, that for every r>=1 there is at most one
@@ -57,7 +57,7 @@
  * lists of handles is a prefix of the other. For example, one can add a
  * ciphertext wrt (1,s(X^2)) to another wrt (1,s(X^2),s^2(X^2)), but not
  * to another ciphertext wrt (1,s).
- **/ 
+ **/
 
 #include "DoubleCRT.h"
 
@@ -75,7 +75,7 @@ class SKHandle {
 public:
   friend class Ctxt;
 
-  SKHandle(long newPowerOfS=0, long newPowerOfX=1, long newSecretKeyID=0)  
+  SKHandle(long newPowerOfS=0, long newPowerOfX=1, long newSecretKeyID=0)
   {
     powerOfS = newPowerOfS;
     powerOfX = newPowerOfX;
@@ -83,24 +83,24 @@ public:
   }
 
   //! @brief Set powerOfS=powerOfX=1
-  void setBase(long newSecretKeyID=-1) 
+  void setBase(long newSecretKeyID=-1)
   {
     powerOfS = 1;
     powerOfX = 1;
     if (newSecretKeyID >= 0) secretKeyID = newSecretKeyID;
   }
- 
+
   //! @brief Is powerOfS==powerOfX==1?
   bool isBase(long ofKeyID=0) const
   {
     // If ofKeyID<0, only check that this is base of some key,
     // otherwise check that this is base of the given key
-    return powerOfS == 1 && powerOfX == 1 && 
+    return powerOfS == 1 && powerOfX == 1 &&
       (ofKeyID<0 || secretKeyID == ofKeyID);
   }
 
   //! @brief Set powerOfS=0, powerOfX=1
-  void setOne(long newSecretKeyID=-1) 
+  void setOne(long newSecretKeyID=-1)
   {
     powerOfS = 0;
     powerOfX = 1;
@@ -135,13 +135,13 @@ public:
    * The key-ID's and powers of X must match, else an error state arises,
    * which is represented using a key-ID of -1 and returning false. Also,
    * note that inputs may alias outputs.
-   * 
+   *
    * To detremine if the resulting handle canbe re-liearized using
    * some key-switchingmatrices from the public key, use the method
    * pubKey.haveKeySWmatrix(handle,handle.secretKeyID), from the class
    * FHEPubKey in FHE.h
   */
-  bool mul(const SKHandle& a, const SKHandle& b) 
+  bool mul(const SKHandle& a, const SKHandle& b)
   {
     // If either of the inputs is one, the output equals to the other input
     if (a.isOne()) {
@@ -159,7 +159,7 @@ public:
     }
 
     if (a.secretKeyID != b.secretKeyID) {
-      secretKeyID = -1; 
+      secretKeyID = -1;
       return false;
     }
 
@@ -185,7 +185,7 @@ inline ostream& operator<<(ostream& s, const SKHandle& handle)
 /**
  * @class CtxtPart
  * @brief One entry in a ciphertext vector
- * 
+ *
  * A cipehrtext part consists of a polynomial (element of the ring R_Q)
  * and a handle to the corresponding secret-key polynomial.
  **/
@@ -203,17 +203,17 @@ public:
   CtxtPart(const FHEcontext& _context): DoubleCRT(_context)
   { skHandle.setOne(); }
 
-  CtxtPart(const FHEcontext& _context, const IndexSet& s): 
+  CtxtPart(const FHEcontext& _context, const IndexSet& s):
     DoubleCRT(_context,s) { skHandle.setOne(); }
 
-  CtxtPart(const FHEcontext& _context, const IndexSet& s, 
-	   const SKHandle& otherHandle): 
+  CtxtPart(const FHEcontext& _context, const IndexSet& s,
+	   const SKHandle& otherHandle):
     DoubleCRT(_context,s), skHandle(otherHandle) {}
 
   explicit
   CtxtPart(const DoubleCRT& other): DoubleCRT(other) { skHandle.setOne(); }
 
-  CtxtPart(const DoubleCRT& other, const SKHandle& otherHandle): 
+  CtxtPart(const DoubleCRT& other, const SKHandle& otherHandle):
     DoubleCRT(other), skHandle(otherHandle) {}
 };
 istream& operator>>(istream& s, CtxtPart& p);
@@ -271,18 +271,23 @@ class Ctxt {
   // from a procedure that will eventually update that estimate.
   Ctxt& operator-=(const CtxtPart& part) { subPart(part); return *this; }
   Ctxt& operator+=(const CtxtPart& part) { addPart(part); return *this; }
+  Ctxt& operator^=(const CtxtPart& part) { xorPart(part); return *this; }
 
   // Procedureal versions with additional parameter
   void subPart(const CtxtPart& part, bool matchPrimeSet=false)
   { subPart(part, part.skHandle, matchPrimeSet); }
   void addPart(const CtxtPart& part, bool matchPrimeSet=false)
   { addPart(part, part.skHandle, matchPrimeSet); }
+  void xorPart(const CtxtPart& part, bool matchPrimeSet=false)
+  { xorPart(part, part.skHandle, matchPrimeSet);  }
 
-  void subPart(const DoubleCRT& part, 
-	       const SKHandle& handle, bool matchPrimeSet=false) 
+  void subPart(const DoubleCRT& part,
+	       const SKHandle& handle, bool matchPrimeSet=false)
   { addPart(part, handle, matchPrimeSet, true); }
-  void addPart(const DoubleCRT& part, const SKHandle& handle, 
+  void addPart(const DoubleCRT& part, const SKHandle& handle,
 	       bool matchPrimeSet=false, bool negative=false);
+  void xorPart(const DoubleCRT& part, const SKHandle& handle,
+          bool matchPrimeSet=false, bool negative=false);
 
   // Takes as arguments a ciphertext-part p relative to s' and a key-switching
   // matrix W = W[s'->s], use W to switch p relative to (1,s), and add the
@@ -290,12 +295,12 @@ class Ctxt {
   void keySwitchPart(const CtxtPart& p, const KeySwitch& W);
 
   long getPartIndexByHandle(const SKHandle& hanle) const {
-    for (size_t i=0; i<parts.size(); i++) 
+    for (size_t i=0; i<parts.size(); i++)
       if (parts[i].skHandle==hanle) return i;
     return -1;
   }
 
-  // Sanity-check: Check that prime-set is "valid", i.e. that it 
+  // Sanity-check: Check that prime-set is "valid", i.e. that it
   // contains either all the special primes or none of them
   bool verifyPrimeSet() const;
 
@@ -303,12 +308,12 @@ class Ctxt {
   // public key, this is needed when we copy the pubEncrKey member between
   // different public keys.
   Ctxt& privateAssign(const Ctxt& other);
- 
+
 public:
   Ctxt(const FHEPubKey& newPubKey, long newPtxtSpace=0); // constructor
 
-  Ctxt(ZeroCtxtLike_type, const Ctxt& ctxt); 
-    // constructs a zero ciphertext with same public key and 
+  Ctxt(ZeroCtxtLike_type, const Ctxt& ctxt);
+    // constructs a zero ciphertext with same public key and
     // plaintext space as ctxt
 
   //! Dummy encryption, just encodes the plaintext in a Ctxt object
@@ -335,7 +340,9 @@ public:
  // Add/subtract aonther ciphertext
   Ctxt& operator+=(const Ctxt& other) { addCtxt(other); return *this; }
   Ctxt& operator-=(const Ctxt& other) { addCtxt(other,true); return *this; }
+  Ctxt& operator^=(const Ctxt& other) { xorCtxt(other); return *this; }
   void addCtxt(const Ctxt& other, bool negative=false);
+  void xorCtxt(const Ctxt& other, bool negative=false);
 
   Ctxt& operator*=(const Ctxt& other); // Multiply by aonther ciphertext
   void automorph(long k); // Apply automorphism F(X) -> F(X^k) (gcd(k,m)=1)
@@ -399,7 +406,7 @@ public:
           // key-switch to (1,s_i), s_i is the base key with index keyIdx
 
   void cleanUp();
-         // relinearize, then reduce, then drop special primes 
+         // relinearize, then reduce, then drop special primes
 
   void reduce() const;
 
@@ -411,7 +418,7 @@ public:
 
   //! @brief Find the "natural level" of a cipehrtext.
   // Find the level such that modDown to that level makes the
-  // additive term due to rounding into the dominant noise term 
+  // additive term due to rounding into the dominant noise term
   long findBaseLevel() const;
 
   //! @brief Modulus-switching up (to a larger modulus).
@@ -500,8 +507,8 @@ public:
   friend ostream& operator<<(ostream& str, const Ctxt& ctxt);
 };
 
-inline IndexSet baseSetOf(const Ctxt& c) { 
-  IndexSet s; c.findBaseSet(s); return s; 
+inline IndexSet baseSetOf(const Ctxt& c) {
+  IndexSet s; c.findBaseSet(s); return s;
 }
 
 //! For i=n-1...0, set v[i]=prod_{j<=i} v[j]
@@ -512,7 +519,7 @@ void incrementalProduct(vector<Ctxt>& v);
 void innerProduct(Ctxt& result, const vector<Ctxt>& v1, const vector<Ctxt>& v2);
 inline Ctxt innerProduct(const vector<Ctxt>& v1, const vector<Ctxt>& v2)
 { Ctxt ret(v1[0].getPubKey());
-  innerProduct(ret, v1, v2); return ret; 
+  innerProduct(ret, v1, v2); return ret;
 }
 
 //! Compute the inner product of a vectors of ciphertexts and a constant vector
@@ -520,14 +527,14 @@ void innerProduct(Ctxt& result,
 		  const vector<Ctxt>& v1, const vector<DoubleCRT>& v2);
 inline Ctxt innerProduct(const vector<Ctxt>& v1, const vector<DoubleCRT>& v2)
 { Ctxt ret(v1[0].getPubKey());
-  innerProduct(ret, v1, v2); return ret; 
+  innerProduct(ret, v1, v2); return ret;
 }
 
 void innerProduct(Ctxt& result,
 		  const vector<Ctxt>& v1, const vector<ZZX>& v2);
 inline Ctxt innerProduct(const vector<Ctxt>& v1, const vector<ZZX>& v2)
 { Ctxt ret(v1[0].getPubKey());
-  innerProduct(ret, v1, v2); return ret; 
+  innerProduct(ret, v1, v2); return ret;
 }
 
 //! print to cerr some info about ciphertext
@@ -535,12 +542,12 @@ void CheckCtxt(const Ctxt& c, const char* label);
 
 /**
  * @brief Extract the mod-p digits of a mod-p^r ciphertext.
- * 
+ *
  * extractDigits returns in the slots of digits[j] the j'th-lowest digits
  * from the integers in the slots of the input. Namely, the i'th slot of
  * digits[j] contains the j'th digit in the p-base expansion of the integer
  * in the i'th slot of the *this.
- * 
+ *
  * If r==0 then it is set to c.effectiveR(). It is assumed that the slots
  * of *this contains integers mod p^r, i.e., that only the free terms are
  * nonzero. If that assumptions does not hold then the result will not be
