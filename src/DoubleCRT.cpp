@@ -8,7 +8,7 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  * See the GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License along
  * with this program; if not, write to the Free Software Foundation, Inc.,
  * 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
@@ -20,7 +20,7 @@
  * the polynomial at the primitive mth roots of unity mod the ith prime. The
  * polynomial thus represented is defined modulo the product of all the primes
  * in use. The list of primes is defined by the data member modChain, which is
- * a vector of Cmodulus objects. 
+ * a vector of Cmodulus objects.
  */
 #include "DoubleCRT.h"
 #include "multicore.h"
@@ -70,13 +70,13 @@ void DoubleCRT::FFT(const ZZX& poly, const IndexSet& s)
   long icard = MakeIndexVector(s, ivec);
   long nthreads = multiTask.SplitProblems(icard, pvec);
 
-  multiTask.exec(nthreads, 
+  multiTask.exec(nthreads,
     [&](long index)  {
       long first = pvec[index];
       long last = pvec[index+1];
       for (long j = first; j < last; j++) {
         long i = ivec[j];
-        context.ithModulus(i).FFT(map[i], poly); 
+        context.ithModulus(i).FFT(map[i], poly);
       }
     }
   );
@@ -110,12 +110,12 @@ void DoubleCRT::verify()
   for (long i = s.first(); i <= s.last(); i = s.next(i)) {
     vec_long& row = map[i];
 
-    if (row.length() != phim) 
+    if (row.length() != phim)
       Error("DoubleCRT object has bad row length");
 
     long pi = context.ithPrime(i); // the i'th modulus
     for (long j=0; j<phim; j++)
-      if (row[j]<0 || row[j]>= pi) 
+      if (row[j]<0 || row[j]>= pi)
 	Error("DoubleCRT object has inconsistent data");
   }
 }
@@ -138,7 +138,7 @@ DoubleCRT& DoubleCRT::Op(const DoubleCRT &other, Fun fun,
     addPrimes(other.map.getIndexSet() / map.getIndexSet()); // This is expensive
 
   // If you need to mod-up the other, do it on a temporary scratch copy
-  DoubleCRT tmp(context, IndexSet()); 
+  DoubleCRT tmp(context, IndexSet());
   const IndexMap<vec_long>* other_map = &other.map;
   if (!(map.getIndexSet() <= other.map.getIndexSet())){ // Even more expensive
     tmp = other;
@@ -154,7 +154,7 @@ DoubleCRT& DoubleCRT::Op(const DoubleCRT &other, Fun fun,
     long pi = context.ithPrime(i);
     vec_long& row = map[i];
     const vec_long& other_row = (*other_map)[i];
-    
+
     for (long j = 0; j < phim; j++)
       row[j] = fun.apply(row[j], other_row[j], pi);
   }
@@ -173,6 +173,10 @@ template
 DoubleCRT& DoubleCRT::Op<DoubleCRT::SubFun>(const DoubleCRT &other, SubFun fun,
 			 bool matchIndexSets);
 
+template
+DoubleCRT& DoubleCRT::Op<DoubleCRT::NegFun>(const DoubleCRT &other, NegFun fun,
+			 bool matchIndexSets);
+
 template<class Fun>
 DoubleCRT& DoubleCRT::Op(const ZZ &num, Fun fun)
 {
@@ -180,7 +184,7 @@ DoubleCRT& DoubleCRT::Op(const ZZ &num, Fun fun)
 
   const IndexSet& s = map.getIndexSet();
   long phim = context.zMStar.getPhiM();
-  
+
   for (long i = s.first(); i <= s.last(); i = s.next(i)) {
     long pi = context.ithPrime(i);
     long n = rem(num, pi);  // n = num % pi
@@ -200,11 +204,14 @@ DoubleCRT& DoubleCRT::Op<DoubleCRT::AddFun>(const ZZ &num, AddFun fun);
 template
 DoubleCRT& DoubleCRT::Op<DoubleCRT::SubFun>(const ZZ &num, SubFun fun);
 
+template
+DoubleCRT& DoubleCRT::Op<DoubleCRT::NegFun>(const ZZ &num, NegFun fun);
+
 DoubleCRT& DoubleCRT::Negate(const DoubleCRT& other)
 {
   if (isDryRun()) return *this;
 
-  if (&context != &other.context) 
+  if (&context != &other.context)
     Error("DoubleCRT Negate: incompatible contexts");
 
   if (map.getIndexSet() != other.map.getIndexSet()) {
@@ -242,6 +249,9 @@ DoubleCRT& DoubleCRT::Op<DoubleCRT::AddFun>(const ZZX &poly, AddFun fun);
 template
 DoubleCRT& DoubleCRT::Op<DoubleCRT::SubFun>(const ZZX &poly, SubFun fun);
 
+template
+DoubleCRT& DoubleCRT::Op<DoubleCRT::NegFun>(const ZZX &poly, NegFun fun);
+
 // break *this into n digits,according to the primeSets in context.digits
 void DoubleCRT::breakIntoDigits(vector<DoubleCRT>& digits, long n) const
 {
@@ -257,7 +267,7 @@ void DoubleCRT::breakIntoDigits(vector<DoubleCRT>& digits, long n) const
     IndexSet notInDigit = digits[i].getIndexSet()/context.digits[i];
     digits[i].removePrimes(notInDigit); // reduce modulo the digit primes
   }
-  
+
   for (long i=0; i<(long)digits.size(); i++) {
     IndexSet notInDigit = allPrimes / digits[i].getIndexSet();
     digits[i].addPrimes(notInDigit); // add back all the primes
@@ -334,7 +344,7 @@ double DoubleCRT::addPrimesAndScale(const IndexSet& s1)
     vec_long& row = map[i];
     // scale row by a factor of f modulo qi
     mulmod_precon_t bninv = PrepMulModPrecon(f, qi);
-    for (long j=0; j<phim; j++) 
+    for (long j=0; j<phim; j++)
       row[j] = MulModPrecon(row[j], f, qi, bninv);
   }
 
@@ -427,7 +437,7 @@ DoubleCRT& DoubleCRT::operator=(const DoubleCRT& other)
 {
    if (this == &other) return *this;
 
-   if (&context != &other.context) 
+   if (&context != &other.context)
       Error("DoubleCRT assignment: incompatible contexts");
 
    if (map.getIndexSet() != other.map.getIndexSet()) {
@@ -450,7 +460,7 @@ DoubleCRT& DoubleCRT::operator=(const DoubleCRT& other)
 // Copy only the primes in s \intersect other.getIndexSet()
 void DoubleCRT::partialCopy(const DoubleCRT& other, const IndexSet& _s)
 {
-   if (&context != &other.context) 
+   if (&context != &other.context)
       Error("DoubleCRT::partialCopy: incompatible contexts");
 
    // set the primes of *this to s \intersect other.getIndexSet()
@@ -569,17 +579,17 @@ FHE_TIMER_START;
   for (long h = 0; h < phim; h++) remtab[h].SetLength(icard);
 
   tmpvec.SetLength(nthreads);
-  
+
   multiTask.exec(nthreads,
     [&](long index) {
       long first = pvec[index];
       long last = pvec[index+1];
       zz_pX& tmp = tmpvec[index];
-  
+
       for (long j = first; j < last; j++) {
         long i = ivec[j];
-        context.ithModulus(i).iFFT(tmp, map[i]); 
-  
+        context.ithModulus(i).iFFT(tmp, map[i]);
+
         long d = deg(tmp);
         for (long h = 0; h <= d; h++) remtab[h][j] = rep(tmp.rep[h]);
         for (long h = d+1; h < phim; h++) remtab[h][j] = 0;
@@ -634,17 +644,17 @@ FHE_TIMER_START;
     add(prod_half, prod, 1);
     div(prod_half, prod_half, 2);
   }
-  
+
   multiTask.exec(nthreads,
     [&](long index) {
       ZZ& res = resvec[index];
       long first = pvec[index];
       long last = pvec[index+1];
-  
+
       for (long h = first; h < last; h++) {
         clear(res);
         long *remvec = remtab[h].elts();
-        
+
         for (long j = 0; j < icard; j++) {
           long q = qvec[j];
           long t = tvec[j];
@@ -652,11 +662,11 @@ FHE_TIMER_START;
           r = MulMod(r, t, q);
           MulAddTo(res, prod1vec[j], r);
         }
-  
+
         rem(res, res, prod);
-        if (!positive && res >= prod_half) 
+        if (!positive && res >= prod_half)
           res -= prod;
-  
+
         poly[h] = res;
       }
     }
@@ -693,15 +703,15 @@ FHE_TIMER_START;
   for (long i = s1.first(); i <= s1.last(); i = s1.next(i)) {
     context.ithModulus(i).restoreModulus();
     zz_pX& tmp = Cmodulus::getScratch_zz_pX();
-    context.ithModulus(i).iFFT(tmp, map[i]); 
+    context.ithModulus(i).iFFT(tmp, map[i]);
     CRT(poly, prod, tmp);  // NTL :-)
   }
 
   if (positive) {
     long d = deg(poly);
-    for (long j = 0; j <= d; j++) 
+    for (long j = 0; j <= d; j++)
       if (poly.rep[j] < 0)
-        poly.rep[j] += prod;   
+        poly.rep[j] += prod;
 
     // no need to normalize poly here
   }
@@ -767,7 +777,7 @@ FHE_TIMER_START;
 
   // The above yeilds polynomial with coefficients in [-p/2,p/2]
   // If we need positive, just add p to all the negative coefficients
-  if (positive) 
+  if (positive)
     for (long j=0; j<poly.rep.length(); j++) {
       if (poly.rep[j] < 0) poly.rep[j] += p;
     }
@@ -790,7 +800,7 @@ DoubleCRT& DoubleCRT::operator/=(const ZZ &num)
 
   const IndexSet& s = map.getIndexSet();
   long phim = context.zMStar.getPhiM();
-  
+
   for (long i = s.first(); i <= s.last(); i = s.next(i)) {
     long pi = context.ithPrime(i);
     long n = InvMod(rem(num, pi),pi);  // n = num^{-1} mod pi
@@ -809,7 +819,7 @@ void DoubleCRT::Exp(long e)
 
   const IndexSet& s = map.getIndexSet();
   long phim = context.zMStar.getPhiM();
-  
+
   for (long i = s.first(); i <= s.last(); i = s.next(i)) {
     long pi = context.ithPrime(i);
     vec_long& row = map[i];
@@ -846,13 +856,13 @@ void DoubleCRT::automorph(long k)
       long idx = zMStar.indexInZmstar(j); // returns -1 if j \notin (Z/mZ)*
       if (idx>=0) row[idx] = tmp[MulModPrecon(j,k,m,precon)];
                                            // new[j] = old[j*k mod m]
-    }    
+    }
   }
 }
 
 // fills each row i with random integers mod pi
 #if 1
-void DoubleCRT::randomize(const ZZ* seed) 
+void DoubleCRT::randomize(const ZZ* seed)
 {
   FHE_TIMER_START;
 
@@ -871,7 +881,7 @@ void DoubleCRT::randomize(const ZZ* seed)
 
   unsigned char *buf = buf_storage.elts();
 
-  
+
   for (long i = s.first(); i <= s.last(); i = s.next(i)) {
     long pi = context.ithPrime(i);
     long k = NumBits(pi-1);
@@ -880,16 +890,16 @@ void DoubleCRT::randomize(const ZZ* seed)
 
     vec_long& row = map[i];
     long j = 0;
-    
+
     for (;;) {
       stream.get(buf, bufsz);
 
       for (long pos = 0; pos <= bufsz-nb; pos += nb) {
         unsigned long utmp = 0;
         for (long cnt = nb-1;  cnt >= 0; cnt--)
-          utmp = (utmp << 8) | buf[pos+cnt]; 
+          utmp = (utmp << 8) | buf[pos+cnt];
         utmp = (utmp & mask);
-        
+
         long tmp = utmp;
 
         row[j] = tmp;
@@ -903,7 +913,7 @@ void DoubleCRT::randomize(const ZZ* seed)
 
 
 #else
-void DoubleCRT::randomize(const ZZ* seed) 
+void DoubleCRT::randomize(const ZZ* seed)
 {
   FHE_TIMER_START;
 
@@ -921,14 +931,14 @@ void DoubleCRT::randomize(const ZZ* seed)
   vec.SetLength(phim);
   for (long j = 0; j < phim; j++)
     RandomBnd(vec[j], prod);
-  
+
   zz_pBak bak; bak.save();
 
   // DIRT: this Vec<zz_p> is used for several moduli
   NTL_THREAD_LOCAL static Vec<zz_p> vvec_tls;
   Vec<zz_p>& vvec = vvec_tls;
   vvec.SetLength(phim);
-  
+
   for (long i = s.first(); i <= s.last(); i = s.next(i)) {
     context.ithModulus(i).restoreModulus();
     conv(vvec, vec);
@@ -936,7 +946,7 @@ void DoubleCRT::randomize(const ZZ* seed)
     long *row = map[i].elts();
     const zz_p *vvecp = vvec.elts();
     for (long j = 0; j < phim; j++)
-      row[j] = rep(vvecp[j]);  
+      row[j] = rep(vvecp[j]);
   }
 }
 #endif
@@ -1007,7 +1017,7 @@ ostream& operator<< (ostream &str, const DoubleCRT &d)
 istream& operator>> (istream &str, DoubleCRT &d)
 {
   //  cerr << "DoubleCRT[";
-  // Advance str beyond first '[' 
+  // Advance str beyond first '['
   seekPastChar(str, '[');  // this function is defined in NumbTh.cpp
 
   IndexSet set;

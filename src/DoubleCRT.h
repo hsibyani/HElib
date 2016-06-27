@@ -8,7 +8,7 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  * See the GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License along
  * with this program; if not, write to the Free Software Foundation, Inc.,
  * 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
@@ -38,22 +38,22 @@
 * See Section 2.6.2 of the design document (IndexMap)
 */
 class DoubleCRTHelper : public IndexMapInit<vec_long> {
-private: 
+private:
   long val;
 
 public:
-  DoubleCRTHelper(const FHEcontext& context) { 
-    val = context.zMStar.getPhiM(); 
+  DoubleCRTHelper(const FHEcontext& context) {
+    val = context.zMStar.getPhiM();
   }
 
   /** @brief the init method ensures that all rows have the same size */
-  virtual void init(vec_long& v) { 
-    v.FixLength(val); 
+  virtual void init(vec_long& v) {
+    v.FixLength(val);
   }
 
   /** @brief clone allocates a new object and copies the content */
-  virtual IndexMapInit<vec_long> * clone() const { 
-    return new DoubleCRTHelper(*this); 
+  virtual IndexMapInit<vec_long> * clone() const {
+    return new DoubleCRTHelper(*this);
   }
 private:
   DoubleCRTHelper(); // disable default constructor
@@ -89,7 +89,7 @@ class DoubleCRT {
   //! current moduli chain, an error is raised if they are not consistent
   void verify();
 
-  // Generic operators. 
+  // Generic operators.
   // The behavior when *this and other use different primes depends on the flag
   // matchIndexSets. When it is set to true then the effective modulus is
   // determined by the union of the two index sets; otherwise, the index set
@@ -108,6 +108,11 @@ class DoubleCRT {
   class MulFun {
   public:
     long apply(long a, long b, long n) { return MulMod(a, b, n); }
+  };
+
+  class NegFun {
+  public:
+    long apply(long a, long b, long n){ return NegateMod(a,n); }
   };
 
 
@@ -142,7 +147,7 @@ public:
   //! @brief Context is not specified, use the "active context"
   //  (run-time error if active context is NULL)
   //  declared "explicit" to avoid implicit type conversion
-  explicit DoubleCRT(const ZZX&poly); 
+  explicit DoubleCRT(const ZZX&poly);
 
  // Without specifying a ZZX, we get the zero polynomial
   explicit DoubleCRT(const FHEcontext &_context);
@@ -182,7 +187,7 @@ public:
   // computes toPoly() mod Q. This is offerred as a separate function in the
   // hope that one day we will figure out a more efficient method of computing
   // this. Right now it is not implemented
-  // 
+  //
   // void toPolyMod(ZZX& p, const ZZ &Q, const IndexSet& s) const;
 
 
@@ -191,20 +196,20 @@ public:
     return map == other.map;
   }
 
-  bool operator!=(const DoubleCRT& other) const { 
+  bool operator!=(const DoubleCRT& other) const {
     return !(*this==other);
   }
 
   // @brief Set to zero
-  DoubleCRT& SetZero() { 
-    *this = ZZ::zero(); 
-    return *this; 
+  DoubleCRT& SetZero() {
+    *this = ZZ::zero();
+    return *this;
   }
 
   // @brief Set to one
-  DoubleCRT& SetOne()  { 
-    *this = 1; 
-    return *this; 
+  DoubleCRT& SetOne()  {
+    *this = 1;
+    return *this;
   }
 
   //! @brief Break into n digits,according to the primeSets in context.digits.
@@ -244,11 +249,11 @@ public:
     return Op(poly, AddFun());
   }
 
-  DoubleCRT& operator+=(const ZZ &num) { 
+  DoubleCRT& operator+=(const ZZ &num) {
     return Op(num, AddFun());
   }
 
-  DoubleCRT& operator+=(long num) { 
+  DoubleCRT& operator+=(long num) {
     return Op(to_ZZ(num), AddFun());
   }
 
@@ -259,16 +264,32 @@ public:
   DoubleCRT& operator-=(const ZZX &poly) {
     return Op(poly,SubFun());
   }
-  
-  DoubleCRT& operator-=(const ZZ &num) { 
+
+  DoubleCRT& operator-=(const ZZ &num) {
     return Op(num, SubFun());
   }
 
-  DoubleCRT& operator-=(long num) { 
+  DoubleCRT& operator-=(long num) {
     return Op(to_ZZ(num), SubFun());
   }
 
-  // These are the prefix versions, ++dcrt and --dcrt. 
+  DoubleCRT& operator^=(const DoubleCRT &other) {
+    return Op(other, NegFun());
+  }
+
+  DoubleCRT& operator^=(const ZZX &poly) {
+    return Op(poly, NegFun());
+  }
+
+  DoubleCRT& operator^=(const ZZ &num) {
+    return Op(num, NegFun());
+  }
+
+  DoubleCRT& operator^=(long num) {
+    return Op(to_ZZ(num), NegFun());
+  }
+
+  // These are the prefix versions, ++dcrt and --dcrt.
   DoubleCRT& operator++() { return (*this += 1); };
   DoubleCRT& operator--() { return (*this -= 1); };
 
@@ -287,26 +308,26 @@ public:
     return Op(poly,MulFun());
   }
 
-  DoubleCRT& operator*=(const ZZ &num) { 
+  DoubleCRT& operator*=(const ZZ &num) {
     return Op(num,MulFun());
   }
 
-  DoubleCRT& operator*=(long num) { 
+  DoubleCRT& operator*=(long num) {
     return Op(to_ZZ(num),MulFun());
   }
 
 
   // Procedural equivalents, supporting also the matchIndexSets flag
   void Add(const DoubleCRT &other, bool matchIndexSets=true) {
-    Op(other, AddFun(), matchIndexSets); 
+    Op(other, AddFun(), matchIndexSets);
   }
 
   void Sub(const DoubleCRT &other, bool matchIndexSets=true) {
-    Op(other, SubFun(), matchIndexSets); 
+    Op(other, SubFun(), matchIndexSets);
   }
 
   void Mul(const DoubleCRT &other, bool matchIndexSets=true) {
-    Op(other, MulFun(), matchIndexSets); 
+    Op(other, MulFun(), matchIndexSets);
   }
 
   // Division by constant
@@ -328,29 +349,29 @@ public:
   const IndexSet& getIndexSet() const { return map.getIndexSet(); }
 
   // Choose random DoubleCRT's, either at random or with small/Gaussian
-  // coefficients. 
+  // coefficients.
 
   //! @brief Fills each row i with random ints mod pi, uses NTL's PRG
   void randomize(const ZZ* seed=NULL);
 
   //! @brief Coefficients are -1/0/1, Prob[0]=1/2
   void sampleSmall() {
-    ZZX poly; 
+    ZZX poly;
     ::sampleSmall(poly,context.zMStar.getPhiM()); // degree-(phi(m)-1) polynomial
     *this = poly; // convert to DoubleCRT
   }
 
   //! @brief Coefficients are -1/0/1 with pre-specified number of nonzeros
   void sampleHWt(long Hwt) {
-    ZZX poly; 
+    ZZX poly;
     ::sampleHWt(poly,Hwt,context.zMStar.getPhiM());
     *this = poly; // convert to DoubleCRT
   }
 
   //! @brief Coefficients are Gaussians
   void sampleGaussian(double stdev=0.0) {
-    if (stdev==0.0) stdev=to_double(context.stdev); 
-    ZZX poly; 
+    if (stdev==0.0) stdev=to_double(context.stdev);
+    ZZX poly;
     ::sampleGaussian(poly, context.zMStar.getPhiM(), stdev);
     *this = poly; // convert to DoubleCRT
   }
