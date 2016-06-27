@@ -186,6 +186,7 @@ Cmodulus& Cmodulus::operator=(const Cmodulus &other)
   return *this;
 }
 
+
 void Cmodulus::FFT(vec_long &y, const ZZX& x) const
 {
   FHE_TIMER_START;

@@ -23,7 +23,6 @@
  * a vector of Cmodulus objects.
  */
 #include "DoubleCRT.h"
-#include "multicore.h"
 #include "timing.h"
 
 
@@ -33,12 +32,15 @@
 #else
 #warning "Polynomial Arithmetic Implementation in DoubleCRT.cpp"
 
+#include <NTL/ZZVec.h>
+#include <NTL/BasicThreadPool.h>
+
+
+
 
 // A threaded implementation of DoubleCRT operations
 
 #ifdef FHE_DCRT_THREADS
-const long FFTMaxThreads = 8;
-NTL_THREAD_LOCAL static MultiTask multiTask(FFTMaxThreads);
 
 static
 long MakeIndexVector(const IndexSet& s, Vec<long>& v)
@@ -63,23 +65,15 @@ void DoubleCRT::FFT(const ZZX& poly, const IndexSet& s)
   if (empty(s)) return;
 
   static thread_local Vec<long> tls_ivec;
-  static thread_local Vec<long> tls_pvec;
   Vec<long>& ivec = tls_ivec;
-  Vec<long>& pvec = tls_pvec;
 
   long icard = MakeIndexVector(s, ivec);
-  long nthreads = multiTask.SplitProblems(icard, pvec);
-
-  multiTask.exec(nthreads,
-    [&](long index)  {
-      long first = pvec[index];
-      long last = pvec[index+1];
+  NTL_EXEC_RANGE(icard, first, last)
       for (long j = first; j < last; j++) {
         long i = ivec[j];
         context.ithModulus(i).FFT(map[i], poly);
       }
-    }
-  );
+  NTL_EXEC_RANGE_END
 }
 
 // A non-threaded implementation of DoubleCRT operations
@@ -88,6 +82,7 @@ void DoubleCRT::FFT(const ZZX& poly, const IndexSet& s)
 void DoubleCRT::FFT(const ZZX& poly, const IndexSet& s)
 {
   FHE_TIMER_START;
+
 
   if (empty(s)) return;
   for (long i = s.first(); i <= s.last(); i = s.next(i))
@@ -573,17 +568,19 @@ FHE_TIMER_START;
 
   long phim = context.zMStar.getPhiM();
   long icard = MakeIndexVector(s1, ivec);
-  long nthreads = multiTask.SplitProblems(icard, pvec);
+
+  PartitionInfo pinfo(icard);
+  long cnt = pinfo.NumIntervals();
 
   remtab.SetLength(phim);
   for (long h = 0; h < phim; h++) remtab[h].SetLength(icard);
 
-  tmpvec.SetLength(nthreads);
+  tmpvec.SetLength(cnt);
 
-  multiTask.exec(nthreads,
-    [&](long index) {
-      long first = pvec[index];
-      long last = pvec[index+1];
+  NTL_EXEC_INDEX(cnt, index)
+      long first, last;
+      pinfo.interval(first, last, index);
+
       zz_pX& tmp = tmpvec[index];
 
       for (long j = first; j < last; j++) {
@@ -594,14 +591,14 @@ FHE_TIMER_START;
         for (long h = 0; h <= d; h++) remtab[h][j] = rep(tmp.rep[h]);
         for (long h = d+1; h < phim; h++) remtab[h][j] = 0;
       }
-    }
-  );
+  NTL_EXEC_INDEX_END
 
 { FHE_NTIMER_START(toPoly_CRT);
 
   poly.rep.SetLength(phim);
 
-  nthreads = multiTask.SplitProblems(phim, pvec);
+  PartitionInfo pinfo1(phim);
+  long cnt1 = pinfo1.NumIntervals();
 
   static thread_local ZZ tls_prod;
   static thread_local ZZ tls_prod_half;
@@ -637,7 +634,7 @@ FHE_TIMER_START;
     tvec[j] = t;
   }
 
-  resvec.SetLength(nthreads);
+  resvec.SetLength(cnt1);
 
   if (!positive) {
     // prod_half = (prod+1)/2
@@ -645,11 +642,10 @@ FHE_TIMER_START;
     div(prod_half, prod_half, 2);
   }
 
-  multiTask.exec(nthreads,
-    [&](long index) {
+  NTL_EXEC_INDEX(cnt1, index)
+      long first, last;
+      pinfo1.interval(first, last, index);
       ZZ& res = resvec[index];
-      long first = pvec[index];
-      long last = pvec[index+1];
 
       for (long h = first; h < last; h++) {
         clear(res);
@@ -669,8 +665,7 @@ FHE_TIMER_START;
 
         poly[h] = res;
       }
-    }
-  );
+  NTL_EXEC_INDEX_END
 
   poly.normalize();
 }
@@ -680,6 +675,86 @@ FHE_TIMER_START;
 
 
 
+#else
+
+
+
+#if 1
+// this version is faster than the original, which is based
+// on NTL's built-in CRT routine
+void DoubleCRT::toPoly(ZZX& poly, const IndexSet& s,
+		       bool positive) const
+{
+FHE_TIMER_START;
+  if (isDryRun()) return;
+
+  IndexSet s1 = map.getIndexSet() & s;
+
+  if (empty(s1)) {
+    clear(poly);
+    return;
+  }
+
+  zz_pBak bak; bak.save();
+
+  long phim = context.zMStar.getPhiM();
+
+  ZZ prod;
+  prod = 1;
+  for (long i = s1.first(); i <= s1.last(); i = s1.next(i))
+    prod *= context.ithModulus(i).getQ();
+
+  long sz = prod.size();
+
+  ZZVec res;
+  res.SetSize(phim, sz+1);
+
+  ZZ prod1;
+
+  for (long i = s1.first(); i <= s1.last(); i = s1.next(i)) {
+    context.ithModulus(i).restoreModulus();
+    zz_pX& tmp = Cmodulus::getScratch_zz_pX();
+    context.ithModulus(i).iFFT(tmp, map[i]);
+    {
+      FHE_NTIMER_START(toPoly_CRT);
+
+      long q = zz_p::modulus();
+      mulmod_t qinv = zz_p::ModulusInverse();
+      div(prod1, prod, q);
+      long r = rem(prod1, q);
+      long rinv = InvMod(r, q);
+      mulmod_precon_t rinvqinv = PrepMulModPrecon(rinv, q, qinv);
+      long tlen = tmp.rep.length();
+      const zz_p *tp = tmp.rep.elts();
+
+      for (long j = 0; j < tlen; j++) {
+        long s2 = MulModPrecon(rep(tp[j]), rinv, q, rinvqinv);
+        MulAddTo(res[j], prod1, s2);
+      }
+    }
+  }
+
+
+  if (positive) {
+    poly.rep.SetLength(phim);
+    for (long j = 0; j < phim; j++) {
+      rem(poly.rep[j], res[j], prod);
+    }
+    poly.normalize();
+  }
+  else {
+    div(prod1, prod, 2);
+    poly.rep.SetLength(phim);
+    for (long j = 0; j < phim; j++) {
+      rem(res[j], res[j], prod);
+      if (res[j] > prod1)
+        sub(poly.rep[j], res[j], prod);
+      else
+        poly.rep[j] = res[j];
+    }
+    poly.normalize();
+  }
+}
 #else
 void DoubleCRT::toPoly(ZZX& poly, const IndexSet& s,
 		       bool positive) const
@@ -704,7 +779,10 @@ FHE_TIMER_START;
     context.ithModulus(i).restoreModulus();
     zz_pX& tmp = Cmodulus::getScratch_zz_pX();
     context.ithModulus(i).iFFT(tmp, map[i]);
-    CRT(poly, prod, tmp);  // NTL :-)
+    {
+       FHE_NTIMER_START(toPoly_CRT);
+       CRT(poly, prod, tmp);  // NTL :-)
+    }
   }
 
   if (positive) {
@@ -716,6 +794,14 @@ FHE_TIMER_START;
     // no need to normalize poly here
   }
 }
+
+
+
+#endif
+
+
+
+
 #endif
 
 
